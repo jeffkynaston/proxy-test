@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: your-proxy-name
+    env: node
+    buildCommand: npm install
+    startCommand: node app.js
+    envVars:
+      - key: PORT
+        value: 8080 
