@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const axios = require('axios')
@@ -42,7 +43,7 @@ async function loginToBoomtown() {
         'x-request-id': requestId,
         'x-requested-with': 'XMLHttpRequest'
       },
-      data: 'email=alan%40smarttech.com&password=B00mtown1!',
+      data: `email=${encodeURIComponent(process.env.BOOMTOWN_EMAIL)}&password=${encodeURIComponent(process.env.BOOMTOWN_PASSWORD)}`,
       maxRedirects: 0,
       validateStatus: status => status >= 200 && status < 303
     })
@@ -175,10 +176,10 @@ async function makeBoomtownRequest(url) {
 }
 
 // Routes
-app.get('/issue', async (req, res) => {
+app.get('/api/issues', async (req, res) => {
   console.log('GET /issue called')
   
-  const issueId = req.query.issueId
+  const issueId = req.query.id
   if (!issueId) {
     return res.status(400).json({ error: 'issueId parameter is required' })
   }
@@ -205,18 +206,34 @@ app.get('/issue', async (req, res) => {
   }
 })
 
-app.get('/comm', async (req, res) => {
+
+app.get('/api/comm', async (req, res) => {
   console.log('GET /comm called')
   
-  // Ensure we're logged in before proceeding
-  if (!authTokens.cookies || !authTokens.csrfToken) {
-    const loginSuccess = await loginToBoomtown()
-    if (!loginSuccess) {
-      return res.status(500).json({ error: 'Failed to authenticate with Boomtown' })
-    }
+  const issueId = req.query.id
+  if (!issueId) {
+    return res.status(400).json({ error: 'issueId parameter is required' })
   }
-  
-  res.json({ message: 'Comm endpoint', auth: authTokens })
+
+  try {
+    // Ensure we're logged in before proceeding
+    if (!authTokens.cookies || !authTokens.csrfToken) {
+      const loginSuccess = await loginToBoomtown()
+      if (!loginSuccess) {
+        return res.status(500).json({ error: 'Failed to authenticate with Boomtown' })
+      }
+    }
+
+    // Make the request to Boomtown's communications endpoint
+    const commUrl = `https://app.stage.goboomtown.com/api/comm/?sAction=itemGet&is_enter=true&id=${issueId}`
+    const commData = await makeBoomtownRequest(commUrl)
+    console.log('Communications data:', commData)
+    
+    res.json(commData)
+  } catch (error) {
+    console.error('Error fetching communications:', error.message)
+    res.status(500).json({ error: 'Failed to fetch communications details' })
+  }
 })
 
 // Start server
